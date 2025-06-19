@@ -3,6 +3,7 @@ from fastapi import FastAPI, Query, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from datetime import datetime, timedelta
+from collections import OrderedDict
 
 from . import config
 from .pma_client import fetch_latest, fetch_by_time_range
@@ -11,23 +12,24 @@ from .models import DataRecord
 DESC = """
 MUT Power Monitor · Demo API
 
-* `/latest`             — 最近 N 行原始数据  
+* `/latest`             — 最近 N 行原始数据（用于测试和异常检测）
 * `/summary`            — 最近 N 行楼栋有功功率汇总
-* `/hourly/latest`      — 最近一小时的全部原始数据
+* `/hourly/tests`       — 最近一小时的全部原始数据
 * `/hourly/summary`     — 最近一小时楼栋有功功率汇总
-* `/daily/latest`       — 最近一天的全部原始数据
+* `/daily/tests`        — 最近一天的全部原始数据
 * `/daily/summary`      — 最近一天楼栋有功功率汇总
-* `/weekly/latest`      — 最近一周的全部原始数据
+* `/weekly/tests`       — 最近一周的全部原始数据
 * `/weekly/summary`     — 最近一周楼栋有功功率汇总
-* `/monthly/latest`     — 最近一个月的全部原始数据
+* `/monthly/tests`      — 最近一个月的全部原始数据
 * `/monthly/summary`    — 最近一个月楼栋有功功率汇总
-* `/custom/latest`      — 自定义时间范围的全部原始数据（最长7天）
+* `/custom/tests`       — 自定义时间范围的全部原始数据（最长7天）
 * `/custom/summary`     — 自定义时间范围的楼栋有功功率汇总（最长7天）
+* `/daily-stats/summary` — 最近10天内每天按楼栋统计的有功功率汇总
 """
 
 app = FastAPI(
     title="MUT Power Monitor API",
-    version="0.3.0",
+    version="0.4.0",
     description=DESC,
 )
 
@@ -122,7 +124,7 @@ async def latest(
         description="返回行数 (1-100)"
     )
 ):
-    """最近 N 行记录"""
+    """最近 N 行记录（用于测试和异常检测）"""
     try:
         rows = await run_in_threadpool(fetch_latest, n)
         
@@ -159,8 +161,8 @@ async def summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/hourly/latest", response_model=List[DataRecord])
-async def hourly_latest():
+@app.get("/hourly/tests", response_model=List[DataRecord])
+async def hourly_tests():
     """最近一小时的全部原始数据"""
     try:
         now = datetime.now()
@@ -176,7 +178,7 @@ async def hourly_latest():
         
         return processed_rows
     except Exception as e:
-        print(f"Error in hourly_latest endpoint: {str(e)}")
+        print(f"Error in hourly_tests endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -200,8 +202,8 @@ async def hourly_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/daily/latest", response_model=List[DataRecord])
-async def daily_latest():
+@app.get("/daily/tests", response_model=List[DataRecord])
+async def daily_tests():
     """最近一天的全部原始数据"""
     try:
         now = datetime.now()
@@ -217,7 +219,7 @@ async def daily_latest():
         
         return processed_rows
     except Exception as e:
-        print(f"Error in daily_latest endpoint: {str(e)}")
+        print(f"Error in daily_tests endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -241,8 +243,8 @@ async def daily_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/weekly/latest", response_model=List[DataRecord])
-async def weekly_latest():
+@app.get("/weekly/tests", response_model=List[DataRecord])
+async def weekly_tests():
     """最近一周的全部原始数据"""
     try:
         now = datetime.now()
@@ -258,7 +260,7 @@ async def weekly_latest():
         
         return processed_rows
     except Exception as e:
-        print(f"Error in weekly_latest endpoint: {str(e)}")
+        print(f"Error in weekly_tests endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -282,8 +284,8 @@ async def weekly_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/monthly/latest", response_model=List[DataRecord])
-async def monthly_latest():
+@app.get("/monthly/tests", response_model=List[DataRecord])
+async def monthly_tests():
     """最近一个月的全部原始数据"""
     try:
         now = datetime.now()
@@ -299,7 +301,7 @@ async def monthly_latest():
         
         return processed_rows
     except Exception as e:
-        print(f"Error in monthly_latest endpoint: {str(e)}")
+        print(f"Error in monthly_tests endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -323,8 +325,8 @@ async def monthly_summary():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/custom/latest", response_model=List[DataRecord])
-async def custom_latest(
+@app.get("/custom/tests", response_model=List[DataRecord])
+async def custom_tests(
     start_date: str = Query(..., description="开始日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）"),
     end_date: str = Query(..., description="结束日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）")
 ):
@@ -355,7 +357,7 @@ async def custom_latest(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        print(f"Error in custom_latest endpoint: {str(e)}")
+        print(f"Error in custom_tests endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -388,6 +390,56 @@ async def custom_summary(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/daily-stats/summary")
+async def daily_stats_summary():
+    """最近10天内每天按楼栋统计的有功功率汇总"""
+    try:
+        now = datetime.now()
+        ten_days_ago = now - timedelta(days=10)
+        
+        # 按天统计结果
+        daily_stats = OrderedDict()
+        
+        for day_offset in range(10):
+            # 计算每天的开始和结束时间
+            current_day = now - timedelta(days=day_offset)
+            
+            # 当天的零点
+            day_start = current_day.replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # 如果是当天，结束时间为当前时间；否则为当天最后一秒
+            if day_offset == 0:
+                day_end = now
+            else:
+                day_end = day_start + timedelta(days=1, seconds=-1)  # 23:59:59
+            
+            # 日期格式化为 YYYY-MM-DD 用作 key
+            day_key = day_start.strftime("%Y-%m-%d")
+            
+            # 设置一个较大的值来获取所有记录
+            max_records = 50000  # 假设一天内的记录不会超过这个数量
+            
+            # 查询该天的数据
+            rows = await run_in_threadpool(fetch_by_time_range, day_start, day_end, max_records)
+            
+            # 计算该天的汇总数据
+            agg = _aggregate_by_building(rows)
+            
+            # 添加到结果中
+            daily_stats[day_key] = {
+                "date": day_key,
+                "summary": agg,
+                "record_count": len(rows)
+            }
+            
+            print(f"Debug - 日期: {day_key}, 记录数: {len(rows)}")
+        
+        return JSONResponse(daily_stats)
+    except Exception as e:
+        print(f"Error in daily_stats_summary endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

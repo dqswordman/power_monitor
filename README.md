@@ -12,23 +12,25 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 - 🔧 **Easy to Extend** - Modular design for easy feature expansion
 - ⏱️ **Time-based Data** - Query data by hour, day, week, month, or custom time range
 - 💯 **Complete Data Access** - Time-based queries return all matching records without limits
+- 📅 **Daily Statistics** - Get daily summaries for the past 10 days
 
 ### API Endpoints
 
 | Method | Path | Parameters | Description |
 |--------|------|------------|-------------|
-| GET | `/latest` | `n` (optional, default 5) | Get latest N raw records |
+| GET | `/latest` | `n` (optional, default 5) | Get latest N raw records (for testing and anomaly detection) |
 | GET | `/summary` | `n` (optional, default 5) | Get building power summary for latest N records |
-| GET | `/hourly/latest` | none | Get all raw records from the last hour |
+| GET | `/hourly/tests` | none | Get all raw records from the last hour |
 | GET | `/hourly/summary` | none | Get building power summary for the last hour |
-| GET | `/daily/latest` | none | Get all raw records from the last day |
+| GET | `/daily/tests` | none | Get all raw records from the last day |
 | GET | `/daily/summary` | none | Get building power summary for the last day |
-| GET | `/weekly/latest` | none | Get all raw records from the last week |
+| GET | `/weekly/tests` | none | Get all raw records from the last week |
 | GET | `/weekly/summary` | none | Get building power summary for the last week |
-| GET | `/monthly/latest` | none | Get all raw records from the last month |
+| GET | `/monthly/tests` | none | Get all raw records from the last month |
 | GET | `/monthly/summary` | none | Get building power summary for the last month |
-| GET | `/custom/latest` | `start_date`, `end_date` | Get all raw records from custom time range (max 7 days) |
+| GET | `/custom/tests` | `start_date`, `end_date` | Get all raw records from custom time range (max 7 days) |
 | GET | `/custom/summary` | `start_date`, `end_date` | Get building power summary for custom time range (max 7 days) |
+| GET | `/daily-stats/summary` | none | Get daily building power summaries for the last 10 days |
 | GET | `/` | - | Welcome page |
 | GET | `/docs` | - | Swagger UI documentation |
 
@@ -105,26 +107,26 @@ power_monitor/
 
 ### Get Raw Data
 ```bash
-# Get latest 5 records (limited by n)
+# Get latest 5 records (for testing and anomaly detection, limited by n)
 curl "http://localhost:8000/latest?n=5"
 
-# Get latest 10 records (limited by n)
+# Get latest 10 records (for testing and anomaly detection, limited by n)
 curl "http://localhost:8000/latest?n=10"
 
 # Get all records from the last hour
-curl "http://localhost:8000/hourly/latest"
+curl "http://localhost:8000/hourly/tests"
 
 # Get all records from the last day
-curl "http://localhost:8000/daily/latest"
+curl "http://localhost:8000/daily/tests"
 
 # Get all records from the last week
-curl "http://localhost:8000/weekly/latest"
+curl "http://localhost:8000/weekly/tests"
 
 # Get all records from the last month
-curl "http://localhost:8000/monthly/latest"
+curl "http://localhost:8000/monthly/tests"
 
 # Get all records from a custom time range (max 7 days)
-curl "http://localhost:8000/custom/latest?start_date=2023-06-01&end_date=2023-06-07"
+curl "http://localhost:8000/custom/tests?start_date=2023-06-01&end_date=2023-06-07"
 ```
 
 ### Get Summary Data
@@ -146,14 +148,44 @@ curl "http://localhost:8000/monthly/summary"
 
 # Get building power summary for all records from a custom time range (max 7 days)
 curl "http://localhost:8000/custom/summary?start_date=2023-06-01&end_date=2023-06-07"
+
+# Get daily building power summaries for the last 10 days
+curl "http://localhost:8000/daily-stats/summary"
 ```
 
-Response example:
+### Response Examples
+
+#### Regular Summary Response
 ```json
 {
   "Building A": 150.5,
   "Building B": 89.2,
   "Building C": 234.1
+}
+```
+
+#### Daily Stats Summary Response
+```json
+{
+  "2023-06-10": {
+    "date": "2023-06-10",
+    "summary": {
+      "Building A": 145.2,
+      "Building B": 82.1,
+      "Building C": 215.7
+    },
+    "record_count": 287
+  },
+  "2023-06-09": {
+    "date": "2023-06-09",
+    "summary": {
+      "Building A": 152.3,
+      "Building B": 91.4,
+      "Building C": 224.9
+    },
+    "record_count": 312
+  },
+  ... (8 more days)
 }
 ```
 
@@ -216,16 +248,27 @@ class DataRecord(BaseModel):
 1. Install "JSON API" data source plugin in Grafana
 2. Configure data source:
    - URL: `http://localhost:8000/summary?n=10` or `http://localhost:8000/hourly/summary`
+   - For daily statistics: `http://localhost:8000/daily-stats/summary`
    - Query interval: 5-10 seconds
 3. Create panel and select JSON API data source
 4. Configure query to display building power data
 
-### Example Query
+### Example Queries
 ```json
+// Regular summary
 {
   "Building A": 150.5,
   "Building B": 89.2,
   "Building C": 234.1
+}
+
+// Daily stats summary (access data for specific days)
+{
+  "2023-06-10": {
+    "summary": {
+      "Building A": 145.2
+    }
+  }
 }
 ```
 
@@ -298,7 +341,13 @@ def fetch_latest(limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
 
 ## 📝 Changelog
 
-### v0.3.0 (2025-06-19-22:30)
+### v0.4.0 (2025-06-20-7:00)
+- 🔄 Renamed all time-based data endpoints from `/*/latest` to `/*/tests`
+- ✨ Added `/daily-stats/summary` endpoint for 10-day daily summaries
+- 🎯 Repurposed `/latest` endpoint specifically for testing and anomaly detection
+- 📊 Enhanced response formats with more detailed information
+
+### v0.3.0 (2025-06-19-22:00)
 - 🚀 Removed record limits for time-based API endpoints
 - ✨ Added monthly data endpoints for last 30 days
 - 📊 Improved custom date range handling
