@@ -10,6 +10,7 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 - 🚀 **Out-of-the-box Ready** - No environment variables needed, centralized configuration
 - 📈 **Grafana Friendly** - Direct support for Grafana JSON API plugin
 - 🔧 **Easy to Extend** - Modular design for easy feature expansion
+- ⏱️ **Time-based Data** - Query data by hour, day, week, or custom time range
 
 ### API Endpoints
 
@@ -17,6 +18,14 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 |--------|------|------------|-------------|
 | GET | `/latest` | `n` (optional, default 5) | Get latest N raw records |
 | GET | `/summary` | `n` (optional, default 5) | Get building power summary for latest N records |
+| GET | `/hourly/latest` | `n` (optional, default 5) | Get latest N raw records from the last hour |
+| GET | `/hourly/summary` | `n` (optional, default 5) | Get building power summary for the last hour |
+| GET | `/daily/latest` | `n` (optional, default 5) | Get latest N raw records from the last day |
+| GET | `/daily/summary` | `n` (optional, default 5) | Get building power summary for the last day |
+| GET | `/weekly/latest` | `n` (optional, default 5) | Get latest N raw records from the last week |
+| GET | `/weekly/summary` | `n` (optional, default 5) | Get building power summary for the last week |
+| GET | `/custom/latest` | `start_date`, `end_date`, `n` (optional, default 5) | Get latest N raw records from custom time range (max 7 days) |
+| GET | `/custom/summary` | `start_date`, `end_date`, `n` (optional, default 5) | Get building power summary for custom time range (max 7 days) |
 | GET | `/` | - | Welcome page |
 | GET | `/docs` | - | Swagger UI documentation |
 
@@ -98,12 +107,36 @@ curl "http://localhost:8000/latest?n=5"
 
 # Get latest 10 records
 curl "http://localhost:8000/latest?n=10"
+
+# Get latest 5 records from the last hour
+curl "http://localhost:8000/hourly/latest?n=5"
+
+# Get latest 5 records from the last day
+curl "http://localhost:8000/daily/latest?n=5"
+
+# Get latest 5 records from the last week
+curl "http://localhost:8000/weekly/latest?n=5"
+
+# Get latest 5 records from a custom time range (max 7 days)
+curl "http://localhost:8000/custom/latest?start_date=2023-06-01&end_date=2023-06-07&n=5"
 ```
 
 ### Get Summary Data
 ```bash
 # Get building power summary for latest 5 records
 curl "http://localhost:8000/summary?n=5"
+
+# Get building power summary for the last hour
+curl "http://localhost:8000/hourly/summary?n=5"
+
+# Get building power summary for the last day
+curl "http://localhost:8000/daily/summary?n=5"
+
+# Get building power summary for the last week
+curl "http://localhost:8000/weekly/summary?n=5"
+
+# Get building power summary for a custom time range (max 7 days)
+curl "http://localhost:8000/custom/summary?start_date=2023-06-01&end_date=2023-06-07&n=5"
 ```
 
 Response example:
@@ -114,6 +147,18 @@ Response example:
   "Building C": 234.1
 }
 ```
+
+### Custom Time Range Format
+
+For custom time range endpoints, use one of these date formats:
+- Simple date: `YYYY-MM-DD` (e.g., `2023-06-01`)
+  - If you use only date without time, the system will automatically use:
+    - 00:00:00 (beginning of day) for start date
+    - 23:59:59 (end of day) for end date
+- Date with time (ISO format): `YYYY-MM-DDThh:mm:ss` (e.g., `2023-06-01T14:30:00`)
+- Date with time (standard format): `YYYY-MM-DD hh:mm:ss` (e.g., `2023-06-01 14:30:00`)
+
+Note: The time range cannot exceed 7 days, or the API will return an error.
 
 ## 🔧 Configuration
 
@@ -232,7 +277,23 @@ def fetch_latest(limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
    - Check field definitions in `app/models.py`
    - Confirm database field names match model aliases
 
+5. **Custom Date Range Errors**
+   - Ensure dates are in one of the supported formats:
+     - `YYYY-MM-DD` (e.g., 2023-06-01)
+     - `YYYY-MM-DDThh:mm:ss` (e.g., 2023-06-01T14:30:00)
+     - `YYYY-MM-DD hh:mm:ss` (e.g., 2023-06-01 14:30:00)
+   - For date-only format, the system will automatically use 00:00:00 for start date and 23:59:59 for end date
+   - Verify that the time range does not exceed 7 days
+   - Confirm that end_date is after start_date
+   - Check server logs for detailed error messages and debug information
+
 ## 📝 Changelog
+
+### v0.2.0 (2024-07-XX)
+- ✨ Added time-based API endpoints (hourly, daily, weekly)
+- 🚀 Implemented custom date range queries
+- 📊 Enhanced data retrieval capabilities
+- 🔧 Improved code reusability and organization
 
 ### v0.1.0 (2024-01-XX)
 - ✨ Initial version release
