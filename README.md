@@ -289,13 +289,13 @@ def fetch_latest(limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
 
 ## 📝 Changelog
 
-### v0.2.0 (2024-07-XX)
+### v0.2.0 (2025-06-19-17:30)
 - ✨ Added time-based API endpoints (hourly, daily, weekly)
 - 🚀 Implemented custom date range queries
 - 📊 Enhanced data retrieval capabilities
 - 🔧 Improved code reusability and organization
 
-### v0.1.0 (2024-01-XX)
+### v0.1.0 (2025-06-19-8:30)
 - ✨ Initial version release
 - 🚀 Implement basic API functionality
 - 📊 Support data aggregation
@@ -323,8 +323,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For questions or suggestions, please contact:
 - Project Issues: [GitHub Issues](https://github.com/your-repo/issues)
-- Email: your-email@example.com
+- Email: dqswordman@gmail.com
 
----
-
-**Note**: Please ensure to modify default database credentials and configurations before using in production environment. 
