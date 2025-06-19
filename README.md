@@ -10,7 +10,8 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 - 🚀 **Out-of-the-box Ready** - No environment variables needed, centralized configuration
 - 📈 **Grafana Friendly** - Direct support for Grafana JSON API plugin
 - 🔧 **Easy to Extend** - Modular design for easy feature expansion
-- ⏱️ **Time-based Data** - Query data by hour, day, week, or custom time range
+- ⏱️ **Time-based Data** - Query data by hour, day, week, month, or custom time range
+- 💯 **Complete Data Access** - Time-based queries return all matching records without limits
 
 ### API Endpoints
 
@@ -18,14 +19,16 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 |--------|------|------------|-------------|
 | GET | `/latest` | `n` (optional, default 5) | Get latest N raw records |
 | GET | `/summary` | `n` (optional, default 5) | Get building power summary for latest N records |
-| GET | `/hourly/latest` | `n` (optional, default 5) | Get latest N raw records from the last hour |
-| GET | `/hourly/summary` | `n` (optional, default 5) | Get building power summary for the last hour |
-| GET | `/daily/latest` | `n` (optional, default 5) | Get latest N raw records from the last day |
-| GET | `/daily/summary` | `n` (optional, default 5) | Get building power summary for the last day |
-| GET | `/weekly/latest` | `n` (optional, default 5) | Get latest N raw records from the last week |
-| GET | `/weekly/summary` | `n` (optional, default 5) | Get building power summary for the last week |
-| GET | `/custom/latest` | `start_date`, `end_date`, `n` (optional, default 5) | Get latest N raw records from custom time range (max 7 days) |
-| GET | `/custom/summary` | `start_date`, `end_date`, `n` (optional, default 5) | Get building power summary for custom time range (max 7 days) |
+| GET | `/hourly/latest` | none | Get all raw records from the last hour |
+| GET | `/hourly/summary` | none | Get building power summary for the last hour |
+| GET | `/daily/latest` | none | Get all raw records from the last day |
+| GET | `/daily/summary` | none | Get building power summary for the last day |
+| GET | `/weekly/latest` | none | Get all raw records from the last week |
+| GET | `/weekly/summary` | none | Get building power summary for the last week |
+| GET | `/monthly/latest` | none | Get all raw records from the last month |
+| GET | `/monthly/summary` | none | Get building power summary for the last month |
+| GET | `/custom/latest` | `start_date`, `end_date` | Get all raw records from custom time range (max 7 days) |
+| GET | `/custom/summary` | `start_date`, `end_date` | Get building power summary for custom time range (max 7 days) |
 | GET | `/` | - | Welcome page |
 | GET | `/docs` | - | Swagger UI documentation |
 
@@ -40,7 +43,7 @@ power_monitor/
 │   ├── pma_client.py        # phpMyAdmin data fetching logic
 │   └── main.py              # FastAPI application entry point
 ├── requirements.txt         # Python dependencies
-└── README.md               # Project documentation
+└── README.md                # Project documentation
 ```
 
 ## 🚀 Quick Start
@@ -102,41 +105,47 @@ power_monitor/
 
 ### Get Raw Data
 ```bash
-# Get latest 5 records
+# Get latest 5 records (limited by n)
 curl "http://localhost:8000/latest?n=5"
 
-# Get latest 10 records
+# Get latest 10 records (limited by n)
 curl "http://localhost:8000/latest?n=10"
 
-# Get latest 5 records from the last hour
-curl "http://localhost:8000/hourly/latest?n=5"
+# Get all records from the last hour
+curl "http://localhost:8000/hourly/latest"
 
-# Get latest 5 records from the last day
-curl "http://localhost:8000/daily/latest?n=5"
+# Get all records from the last day
+curl "http://localhost:8000/daily/latest"
 
-# Get latest 5 records from the last week
-curl "http://localhost:8000/weekly/latest?n=5"
+# Get all records from the last week
+curl "http://localhost:8000/weekly/latest"
 
-# Get latest 5 records from a custom time range (max 7 days)
-curl "http://localhost:8000/custom/latest?start_date=2023-06-01&end_date=2023-06-07&n=5"
+# Get all records from the last month
+curl "http://localhost:8000/monthly/latest"
+
+# Get all records from a custom time range (max 7 days)
+curl "http://localhost:8000/custom/latest?start_date=2023-06-01&end_date=2023-06-07"
 ```
 
 ### Get Summary Data
 ```bash
-# Get building power summary for latest 5 records
+# Get building power summary for latest 5 records (limited by n)
 curl "http://localhost:8000/summary?n=5"
 
-# Get building power summary for the last hour
-curl "http://localhost:8000/hourly/summary?n=5"
+# Get building power summary for all records from the last hour
+curl "http://localhost:8000/hourly/summary"
 
-# Get building power summary for the last day
-curl "http://localhost:8000/daily/summary?n=5"
+# Get building power summary for all records from the last day
+curl "http://localhost:8000/daily/summary"
 
-# Get building power summary for the last week
-curl "http://localhost:8000/weekly/summary?n=5"
+# Get building power summary for all records from the last week
+curl "http://localhost:8000/weekly/summary"
 
-# Get building power summary for a custom time range (max 7 days)
-curl "http://localhost:8000/custom/summary?start_date=2023-06-01&end_date=2023-06-07&n=5"
+# Get building power summary for all records from the last month
+curl "http://localhost:8000/monthly/summary"
+
+# Get building power summary for all records from a custom time range (max 7 days)
+curl "http://localhost:8000/custom/summary?start_date=2023-06-01&end_date=2023-06-07"
 ```
 
 Response example:
@@ -174,8 +183,8 @@ Note: The time range cannot exceed 7 days, or the API will return an error.
 | `ORDER_BY_COLUMN` | Sort column | `timestamp` |
 | `VERIFY_SSL` | SSL verification | `False` |
 | `TIMEOUT` | Request timeout | `30` seconds |
-| `DEFAULT_LIMIT` | Default record limit | `5` |
-| `MAX_LIMIT` | Maximum record limit | `100` |
+| `DEFAULT_LIMIT` | Default record limit (for `/latest` and `/summary`) | `5` |
+| `MAX_LIMIT` | Maximum record limit (for `/latest` and `/summary`) | `100` |
 
 ## 📊 Data Models
 
@@ -206,7 +215,7 @@ class DataRecord(BaseModel):
 
 1. Install "JSON API" data source plugin in Grafana
 2. Configure data source:
-   - URL: `http://localhost:8000/summary?n=10`
+   - URL: `http://localhost:8000/summary?n=10` or `http://localhost:8000/hourly/summary`
    - Query interval: 5-10 seconds
 3. Create panel and select JSON API data source
 4. Configure query to display building power data
@@ -288,6 +297,12 @@ def fetch_latest(limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
    - Check server logs for detailed error messages and debug information
 
 ## 📝 Changelog
+
+### v0.3.0 (2025-06-19-22:30)
+- 🚀 Removed record limits for time-based API endpoints
+- ✨ Added monthly data endpoints for last 30 days
+- 📊 Improved custom date range handling
+- 🔍 Enhanced debugging information
 
 ### v0.2.0 (2025-06-19-17:30)
 - ✨ Added time-based API endpoints (hourly, daily, weekly)

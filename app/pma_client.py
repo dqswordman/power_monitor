@@ -83,14 +83,14 @@ def fetch_latest(limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
 
     return _parse_table(r.text)
 
-def fetch_by_time_range(start_time: datetime, end_time: datetime, limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
+def fetch_by_time_range(start_time: datetime, end_time: datetime, limit: int = 1000000) -> List[Dict]:
     """
     根据时间范围获取数据
     
     Args:
         start_time: 开始时间
         end_time: 结束时间
-        limit: 最大返回行数
+        limit: 最大返回行数（默认设置为一个非常大的数，以确保获取所有记录）
     
     Returns:
         符合时间范围的数据列表

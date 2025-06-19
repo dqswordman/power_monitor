@@ -13,19 +13,21 @@ MUT Power Monitor · Demo API
 
 * `/latest`             — 最近 N 行原始数据  
 * `/summary`            — 最近 N 行楼栋有功功率汇总
-* `/hourly/latest`      — 最近一小时的原始数据
+* `/hourly/latest`      — 最近一小时的全部原始数据
 * `/hourly/summary`     — 最近一小时楼栋有功功率汇总
-* `/daily/latest`       — 最近一天的原始数据
+* `/daily/latest`       — 最近一天的全部原始数据
 * `/daily/summary`      — 最近一天楼栋有功功率汇总
-* `/weekly/latest`      — 最近一周的原始数据
+* `/weekly/latest`      — 最近一周的全部原始数据
 * `/weekly/summary`     — 最近一周楼栋有功功率汇总
-* `/custom/latest`      — 自定义时间范围的原始数据（最长7天）
+* `/monthly/latest`     — 最近一个月的全部原始数据
+* `/monthly/summary`    — 最近一个月楼栋有功功率汇总
+* `/custom/latest`      — 自定义时间范围的全部原始数据（最长7天）
 * `/custom/summary`     — 自定义时间范围的楼栋有功功率汇总（最长7天）
 """
 
 app = FastAPI(
     title="MUT Power Monitor API",
-    version="0.2.0",
+    version="0.3.0",
     description=DESC,
 )
 
@@ -158,21 +160,19 @@ async def summary(
 
 
 @app.get("/hourly/latest", response_model=List[DataRecord])
-async def hourly_latest(
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="返回行数 (1-100)"
-    )
-):
-    """最近一小时的原始数据"""
+async def hourly_latest():
+    """最近一小时的全部原始数据"""
     try:
         now = datetime.now()
         one_hour_ago = now - timedelta(hours=1)
         
-        rows = await run_in_threadpool(fetch_by_time_range, one_hour_ago, now, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 10000  # 假设一小时内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_hour_ago, now, max_records)
         processed_rows = _process_raw_data(rows)
+        
+        print(f"Debug - 最近一小时获取记录数: {len(processed_rows)}")
         
         return processed_rows
     except Exception as e:
@@ -181,21 +181,19 @@ async def hourly_latest(
 
 
 @app.get("/hourly/summary")
-async def hourly_summary(
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="汇总最近一小时数据"
-    )
-):
+async def hourly_summary():
     """最近一小时 → 按楼栋统计累计有功功率(kW)。"""
     try:
         now = datetime.now()
         one_hour_ago = now - timedelta(hours=1)
         
-        rows = await run_in_threadpool(fetch_by_time_range, one_hour_ago, now, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 10000  # 假设一小时内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_hour_ago, now, max_records)
         agg = _aggregate_by_building(rows)
+        
+        print(f"Debug - 最近一小时汇总记录数: {len(rows)}")
         
         return JSONResponse(agg)
     except Exception as e:
@@ -203,21 +201,19 @@ async def hourly_summary(
 
 
 @app.get("/daily/latest", response_model=List[DataRecord])
-async def daily_latest(
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="返回行数 (1-100)"
-    )
-):
-    """最近一天的原始数据"""
+async def daily_latest():
+    """最近一天的全部原始数据"""
     try:
         now = datetime.now()
         one_day_ago = now - timedelta(days=1)
         
-        rows = await run_in_threadpool(fetch_by_time_range, one_day_ago, now, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 50000  # 假设一天内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_day_ago, now, max_records)
         processed_rows = _process_raw_data(rows)
+        
+        print(f"Debug - 最近一天获取记录数: {len(processed_rows)}")
         
         return processed_rows
     except Exception as e:
@@ -226,21 +222,19 @@ async def daily_latest(
 
 
 @app.get("/daily/summary")
-async def daily_summary(
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="汇总最近一天数据"
-    )
-):
+async def daily_summary():
     """最近一天 → 按楼栋统计累计有功功率(kW)。"""
     try:
         now = datetime.now()
         one_day_ago = now - timedelta(days=1)
         
-        rows = await run_in_threadpool(fetch_by_time_range, one_day_ago, now, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 50000  # 假设一天内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_day_ago, now, max_records)
         agg = _aggregate_by_building(rows)
+        
+        print(f"Debug - 最近一天汇总记录数: {len(rows)}")
         
         return JSONResponse(agg)
     except Exception as e:
@@ -248,21 +242,19 @@ async def daily_summary(
 
 
 @app.get("/weekly/latest", response_model=List[DataRecord])
-async def weekly_latest(
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="返回行数 (1-100)"
-    )
-):
-    """最近一周的原始数据"""
+async def weekly_latest():
+    """最近一周的全部原始数据"""
     try:
         now = datetime.now()
         one_week_ago = now - timedelta(days=7)
         
-        rows = await run_in_threadpool(fetch_by_time_range, one_week_ago, now, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 200000  # 假设一周内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_week_ago, now, max_records)
         processed_rows = _process_raw_data(rows)
+        
+        print(f"Debug - 最近一周获取记录数: {len(processed_rows)}")
         
         return processed_rows
     except Exception as e:
@@ -271,21 +263,60 @@ async def weekly_latest(
 
 
 @app.get("/weekly/summary")
-async def weekly_summary(
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="汇总最近一周数据"
-    )
-):
+async def weekly_summary():
     """最近一周 → 按楼栋统计累计有功功率(kW)。"""
     try:
         now = datetime.now()
         one_week_ago = now - timedelta(days=7)
         
-        rows = await run_in_threadpool(fetch_by_time_range, one_week_ago, now, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 200000  # 假设一周内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_week_ago, now, max_records)
         agg = _aggregate_by_building(rows)
+        
+        print(f"Debug - 最近一周汇总记录数: {len(rows)}")
+        
+        return JSONResponse(agg)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/monthly/latest", response_model=List[DataRecord])
+async def monthly_latest():
+    """最近一个月的全部原始数据"""
+    try:
+        now = datetime.now()
+        one_month_ago = now - timedelta(days=30)  # 使用30天作为一个月的近似值
+        
+        # 设置一个较大的值来获取所有记录
+        max_records = 500000  # 假设一个月内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_month_ago, now, max_records)
+        processed_rows = _process_raw_data(rows)
+        
+        print(f"Debug - 最近一个月获取记录数: {len(processed_rows)}")
+        
+        return processed_rows
+    except Exception as e:
+        print(f"Error in monthly_latest endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/monthly/summary")
+async def monthly_summary():
+    """最近一个月 → 按楼栋统计累计有功功率(kW)。"""
+    try:
+        now = datetime.now()
+        one_month_ago = now - timedelta(days=30)  # 使用30天作为一个月的近似值
+        
+        # 设置一个较大的值来获取所有记录
+        max_records = 500000  # 假设一个月内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, one_month_ago, now, max_records)
+        agg = _aggregate_by_building(rows)
+        
+        print(f"Debug - 最近一个月汇总记录数: {len(rows)}")
         
         return JSONResponse(agg)
     except Exception as e:
@@ -295,22 +326,19 @@ async def weekly_summary(
 @app.get("/custom/latest", response_model=List[DataRecord])
 async def custom_latest(
     start_date: str = Query(..., description="开始日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）"),
-    end_date: str = Query(..., description="结束日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）"),
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="返回行数 (1-100)"
-    )
+    end_date: str = Query(..., description="结束日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）")
 ):
-    """自定义时间范围的原始数据（最长7天）"""
+    """自定义时间范围的全部原始数据（最长7天）"""
     try:
         start_dt, end_dt = await _validate_date_range(start_date, end_date)
         
         # 调试信息
         print(f"Debug - 查询时间范围: {start_dt} 到 {end_dt}")
         
-        rows = await run_in_threadpool(fetch_by_time_range, start_dt, end_dt, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 200000  # 假设7天内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, start_dt, end_dt, max_records)
         
         # 调试信息
         if rows:
@@ -334,13 +362,7 @@ async def custom_latest(
 @app.get("/custom/summary")
 async def custom_summary(
     start_date: str = Query(..., description="开始日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）"),
-    end_date: str = Query(..., description="结束日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）"),
-    n: int = Query(
-        config.DEFAULT_LIMIT,
-        ge=1,
-        le=config.MAX_LIMIT,
-        description="返回行数 (1-100)"
-    )
+    end_date: str = Query(..., description="结束日期（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss）")
 ):
     """自定义时间范围 → 按楼栋统计累计有功功率(kW)（最长7天）。"""
     try:
@@ -349,7 +371,10 @@ async def custom_summary(
         # 调试信息
         print(f"Debug - 汇总查询时间范围: {start_dt} 到 {end_dt}")
         
-        rows = await run_in_threadpool(fetch_by_time_range, start_dt, end_dt, n)
+        # 设置一个较大的值来获取所有记录
+        max_records = 200000  # 假设7天内的记录不会超过这个数量
+        
+        rows = await run_in_threadpool(fetch_by_time_range, start_dt, end_dt, max_records)
         
         # 调试信息
         if rows:
