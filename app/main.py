@@ -57,8 +57,39 @@ async def latest(
     """最近 N 行记录"""
     try:
         rows = await run_in_threadpool(fetch_latest, n)
-        return rows
+        
+        # 调试：打印第一行数据的字段
+        if rows:
+            print(f"Debug - First row keys: {list(rows[0].keys())}")
+            print(f"Debug - First row: {rows[0]}")
+        
+        # 确保数据格式正确
+        processed_rows = []
+        for row in rows:
+            # 确保所有必需字段都存在
+            processed_row = {
+                "id": row.get("id", 0),
+                "timestamp1": row.get("timestamp1", ""),  # 使用数据库字段名
+                "volt1": row.get("volt1", 0),
+                "volt2": row.get("volt2", 0),
+                "volt3": row.get("volt3", 0),
+                "current1": row.get("current1", 0),
+                "current2": row.get("current2", 0),
+                "current3": row.get("current3", 0),
+                "power1": row.get("power1", 0),
+                "power2": row.get("power2", 0),
+                "power3": row.get("power3", 0),
+                "energy1": row.get("energy1", 0),
+                "energy2": row.get("energy2", 0),
+                "energy3": row.get("energy3", 0),
+                "Building": row.get("Building", "UNKNOWN"),
+                "Floor": row.get("Floor")
+            }
+            processed_rows.append(processed_row)
+        
+        return processed_rows
     except Exception as e:
+        print(f"Error in latest endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
