@@ -13,6 +13,7 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 - ⏱️ **Time-based Data** - Query data by hour, day, week, month, or custom time range
 - 💯 **Complete Data Access** - Time-based queries return all matching records without limits
 - 📅 **Daily Statistics** - Get daily summaries for the past 10 days
+- ⏲️ **Half-hourly Data** - Get 24-hour data divided into 30-minute intervals with timestamps
 
 ### API Endpoints
 
@@ -31,6 +32,8 @@ A ready-to-use minimal project for monitoring and managing power data. Built wit
 | GET | `/custom/tests` | `start_date`, `end_date` | Get all raw records from custom time range (max 7 days) |
 | GET | `/custom/summary` | `start_date`, `end_date` | Get building power summary for custom time range (max 7 days) |
 | GET | `/daily-stats/summary` | none | Get daily building power summaries for the last 10 days |
+| GET | `/half-hourly/summary` | none | Get 24-hour data in 30-minute intervals from current time |
+| GET | `/test/half-hourly/summary` | `test_time` | Test API: Get 24-hour data in 30-minute intervals from specified time |
 | GET | `/` | - | Welcome page |
 | GET | `/docs` | - | Swagger UI documentation |
 
@@ -151,6 +154,12 @@ curl "http://localhost:8000/custom/summary?start_date=2023-06-01&end_date=2023-0
 
 # Get daily building power summaries for the last 10 days
 curl "http://localhost:8000/daily-stats/summary"
+
+# Get 24-hour data in 30-minute intervals from current time
+curl "http://localhost:8000/half-hourly/summary"
+
+# Test API: Get 24-hour data in 30-minute intervals from a specified time
+curl "http://localhost:8000/test/half-hourly/summary?test_time=2023-06-10T15:45:00"
 ```
 
 ### Response Examples
@@ -188,6 +197,45 @@ curl "http://localhost:8000/daily-stats/summary"
   ... (8 more days)
 }
 ```
+
+#### Half-hourly Summary Response
+```json
+{
+  "2023-06-09 12:30:00": {
+    "end_time": "2023-06-09 12:30:00",
+    "summary": {
+      "Building A": 142.8,
+      "Building B": 85.3,
+      "Building C": 219.7
+    }
+  },
+  "2023-06-09 13:00:00": {
+    "end_time": "2023-06-09 13:00:00",
+    "summary": {
+      "Building A": 148.6,
+      "Building B": 88.2,
+      "Building C": 221.3
+    }
+  },
+  ... (more 30-minute intervals)
+}
+```
+
+### Half-hourly Data Format
+
+The half-hourly APIs (`/half-hourly/summary` and `/test/half-hourly/summary`) provide power data for 24 hours divided into 30-minute intervals:
+
+- Each API returns exactly 48 complete half-hour intervals (24 hours) plus one partial interval
+- The system finds the nearest half-hour mark (either on the hour or at 30 minutes past)
+- For each interval, the response includes the end timestamp and power summary by building
+- The final interval contains data from the last half-hour mark to the current/specified time
+
+For the test endpoint (`/test/half-hourly/summary`), provide a timestamp using one of these formats:
+- Simple date: `YYYY-MM-DD` (defaults to 00:00:00 for that day)
+- ISO format: `YYYY-MM-DDThh:mm:ss`
+- Standard format: `YYYY-MM-DD hh:mm:ss`
+
+Example: `/test/half-hourly/summary?test_time=2023-06-10T15:45:00`
 
 ### Custom Time Range Format
 
@@ -249,6 +297,7 @@ class DataRecord(BaseModel):
 2. Configure data source:
    - URL: `http://localhost:8000/summary?n=10` or `http://localhost:8000/hourly/summary`
    - For daily statistics: `http://localhost:8000/daily-stats/summary`
+   - For 24-hour half-hourly data: `http://localhost:8000/half-hourly/summary`
    - Query interval: 5-10 seconds
 3. Create panel and select JSON API data source
 4. Configure query to display building power data
@@ -340,6 +389,14 @@ def fetch_latest(limit: int = config.DEFAULT_LIMIT) -> List[Dict]:
    - Check server logs for detailed error messages and debug information
 
 ## 📝 Changelog
+
+### v0.5.0 (2025-06-21-7:00)
+- ✨ Added half-hourly power data APIs:
+  - `/half-hourly/summary`: 24-hour data in 30-minute intervals from current time
+  - `/test/half-hourly/summary`: Test API with specified time and debugging output
+- 🔄 Each API returns 48 complete half-hour intervals plus one partial interval
+- 📊 Enhanced data format with end timestamps and building summaries
+- 📝 Improved documentation and examples
 
 ### v0.4.0 (2025-06-20-7:00)
 - 🔄 Renamed all time-based data endpoints from `/*/latest` to `/*/tests`

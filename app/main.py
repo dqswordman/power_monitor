@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from datetime import datetime, timedelta
 from collections import OrderedDict
+import math
 
 from . import config
 from .pma_client import fetch_latest, fetch_by_time_range
@@ -25,11 +26,13 @@ MUT Power Monitor · Demo API
 * `/custom/tests`       — 自定义时间范围的全部原始数据（最长7天）
 * `/custom/summary`     — 自定义时间范围的楼栋有功功率汇总（最长7天）
 * `/daily-stats/summary` — 最近10天内每天按楼栋统计的有功功率汇总
+* `/half-hourly/summary` — 24小时内每半小时的楼栋有功功率汇总
+* `/test/half-hourly/summary` — 测试API：指定时间24小时内每半小时的楼栋有功功率汇总
 """
 
 app = FastAPI(
     title="MUT Power Monitor API",
-    version="0.4.0",
+    version="0.5.0",
     description=DESC,
 )
 
@@ -440,6 +443,154 @@ async def daily_stats_summary():
         return JSONResponse(daily_stats)
     except Exception as e:
         print(f"Error in daily_stats_summary endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/half-hourly/summary")
+async def half_hourly_summary():
+    """获取当前时间往前推算24小时内每半个小时的功率汇总数据"""
+    try:
+        # 获取当前时间
+        now = datetime.now()
+        
+        # 计算整点或半点时间
+        if now.minute < 30:
+            last_half_hour = now.replace(minute=0, second=0, microsecond=0)
+        else:
+            last_half_hour = now.replace(minute=30, second=0, microsecond=0)
+            
+        # 24小时前的时间（48个半小时）
+        day_ago = last_half_hour - timedelta(days=1)
+        
+        result = {}
+        
+        # 为每个半小时时间段生成数据
+        current_time = day_ago
+        while current_time <= last_half_hour:
+            # 计算时间段结束时间
+            end_time = current_time + timedelta(minutes=30)
+            
+            # 获取该时间段的数据
+            rows = await run_in_threadpool(fetch_by_time_range, current_time, end_time, 10000)
+            
+            # 汇总该时间段的数据
+            agg = _aggregate_by_building(rows)
+            
+            # 使用时间段的结束时间作为键
+            time_key = end_time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # 存储结果
+            result[time_key] = {
+                "end_time": time_key,
+                "summary": agg
+            }
+            
+            # 移动到下一个半小时时间段
+            current_time = end_time
+        
+        # 添加当前时间的数据
+        if now > last_half_hour:
+            rows = await run_in_threadpool(fetch_by_time_range, last_half_hour, now, 10000)
+            agg = _aggregate_by_building(rows)
+            current_time_key = now.strftime("%Y-%m-%d %H:%M:%S")
+            result[current_time_key] = {
+                "end_time": current_time_key,
+                "summary": agg
+            }
+        
+        return JSONResponse(result)
+    except Exception as e:
+        print(f"Error in half_hourly_summary endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/test/half-hourly/summary")
+async def test_half_hourly_summary(
+    test_time: str = Query(..., description="测试时间（格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss 或 YYYY-MM-DD hh:mm:ss）")
+):
+    """测试API：根据指定时间往前推算24小时内每半个小时的功率汇总数据"""
+    try:
+        # 解析输入时间
+        if "T" not in test_time and " " not in test_time and len(test_time.split("-")) == 3:
+            test_dt = datetime.fromisoformat(f"{test_time}T00:00:00")
+        else:
+            test_dt = datetime.fromisoformat(test_time.replace(" ", "T") if " " in test_time else test_time)
+        
+        print(f"Debug - 测试时间: {test_dt}")
+        
+        # 计算整点或半点时间
+        if test_dt.minute < 30:
+            last_half_hour = test_dt.replace(minute=0, second=0, microsecond=0)
+        else:
+            last_half_hour = test_dt.replace(minute=30, second=0, microsecond=0)
+            
+        print(f"Debug - 最近半小时整点: {last_half_hour}")
+        
+        # 24小时前的时间（48个半小时）
+        day_ago = last_half_hour - timedelta(days=1)
+        
+        print(f"Debug - 24小时前时间: {day_ago}")
+        
+        result = {}
+        
+        # 为每个半小时时间段生成数据
+        current_time = day_ago
+        while current_time <= last_half_hour:
+            # 计算时间段结束时间
+            end_time = current_time + timedelta(minutes=30)
+            
+            print(f"Debug - 正在查询时间范围: {current_time} 至 {end_time}")
+            
+            # 获取该时间段的数据
+            rows = await run_in_threadpool(fetch_by_time_range, current_time, end_time, 10000)
+            
+            print(f"Debug - 该时间段获取记录数: {len(rows)}")
+            
+            # 汇总该时间段的数据
+            agg = _aggregate_by_building(rows)
+            
+            print(f"Debug - 该时间段数据汇总: {agg}")
+            
+            # 使用时间段的结束时间作为键
+            time_key = end_time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # 存储结果
+            result[time_key] = {
+                "end_time": time_key,
+                "summary": agg
+            }
+            
+            # 移动到下一个半小时时间段
+            current_time = end_time
+        
+        # 添加当前时间的数据
+        if test_dt > last_half_hour:
+            print(f"Debug - 正在查询最后时间段: {last_half_hour} 至 {test_dt}")
+            
+            rows = await run_in_threadpool(fetch_by_time_range, last_half_hour, test_dt, 10000)
+            
+            print(f"Debug - 最后时间段获取记录数: {len(rows)}")
+            
+            agg = _aggregate_by_building(rows)
+            
+            print(f"Debug - 最后时间段数据汇总: {agg}")
+            
+            current_time_key = test_dt.strftime("%Y-%m-%d %H:%M:%S")
+            result[current_time_key] = {
+                "end_time": current_time_key,
+                "summary": agg
+            }
+        
+        print(f"Debug - 总共生成时间段数: {len(result)}")
+        
+        return JSONResponse(result)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, 
+            detail="日期格式无效，请使用ISO格式：YYYY-MM-DD 或 YYYY-MM-DDThh:mm:ss 或 YYYY-MM-DD hh:mm:ss"
+        )
+    except Exception as e:
+        print(f"Error in test_half_hourly_summary endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
